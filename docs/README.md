@@ -1,13 +1,20 @@
 # Auditoría RimDC
 
 Auditoría completa del repo, hecha el 2026-09-28 sobre `C:\Users\rafae\Documents\GitHub\RimDC`
-(commit `bac16f4` — "First commit").
+(commit `28c963b` — el árbol reescrito y saneado; el SHA original `bac16f4` ya no
+existe en la rama).
+
+Los documentos 01 a 03 describen el repo **antes** de las correcciones. Para saber
+qué se implementó de verdad, empieza por
+[05-implementacion.md](05-implementacion.md).
 
 | Documento | Para qué |
 |-----------|----------|
 | [01-que-es-este-proyecto.md](01-que-es-este-proyecto.md) | Entender qué hace el proyecto, de punta a punta |
 | [02-arquitectura.md](02-arquitectura.md) | Cómo está partido, qué habla con qué, y por qué |
 | [03-auditoria.md](03-auditoria.md) | Hallazgos con severidad, archivo y línea |
+| [04-plan-de-arreglo.md](04-plan-de-arreglo.md) | Plan de corrección en 7 fases, y el checklist de runtime |
+| [05-implementacion.md](05-implementacion.md) | Qué se implementó, con qué evidencia, y qué quedó abierto |
 | [diagramas/PLAN.md](diagramas/PLAN.md) | Qué diagramas faltan y para qué sirve cada uno |
 
 ## Resumen ejecutivo
@@ -34,11 +41,11 @@ servidor, y hay dos crashes alcanzables desde un comando de Discord.
 
 Detalle y evidencia en [03-auditoria.md](03-auditoria.md).
 
-## Lo primero que hay que arreglar
+## Estado actual
 
-1. **C1** — el listener no autentica a nadie. Cualquier proceso local mueve cualquier colonist.
-2. **C2** — `interaction.resppobresonse` (typo) rompe el comando `equip_weapon` siempre.
-3. **C3** — `/arrest` con un objetivo inexistente tira `NullReferenceException`.
+De los 28 hallazgos: **24 cerrados**, 2 a medio (M6, M7) y 2 diferidos por decisión
+de producto (M1, B4). Nada de esto se ha verificado todavía dentro de RimWorld —
+ver [05-implementacion.md](05-implementacion.md).
 
 ## Metodología
 
