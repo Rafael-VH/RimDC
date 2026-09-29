@@ -21,15 +21,38 @@ The mod is called **RimServer** in RimWorld's mod list (that is the name in
 Two processes, one shared secret, `localhost` only. The mod never binds anything
 but the loopback interface.
 
+## Quick path
+
+Get to a working setup with the mod alone. The bot is optional and comes after.
+
+1. **Install Biotech.** Not optional, and RimWorld will not warn you — see
+   [Requirements](#requirements).
+2. **Build the mod** against your RimWorld install:
+   `dotnet build -c Release /p:RimWorldManagedDir="<path to Managed>"`
+3. **Copy** `bin/Release/*` into your RimWorld `Assemblies/` folder, then enable
+   **RimServer** in the mod list.
+4. **Set the shared token** and restart RimWorld:
+   `setx RIMDC_TOKEN "something-long-and-random"`
+5. **Verify.** The log should contain `server instace created on
+   http://localhost:9891`. Then:
+
+   ```sh
+   curl -H "Authorization: Bearer $RIMDC_TOKEN" \
+        "http://localhost:9891/eat?pawn=<a colonist nickname>"
+   ```
+
+   `Request sent` means the whole chain works. `401` means the token mismatch —
+   see [Troubleshooting](#troubleshooting).
+
 ## Requirements
+
+**For the mod:**
 
 | | |
 |---|---|
 | RimWorld | 1.6 |
-| **Biotech** | **required** — see below |
+| **Biotech** | **required** |
 | .NET SDK | any version that can target `netstandard2.1` |
-| Python | 3 |
-| Discord | a bot application and its token, invited to your server |
 
 **Biotech is not optional.** `/create_character` calls
 `ModsConfig.BiotechActive` and picks a `XenotypeDef`; without Biotech it logs
@@ -40,6 +63,13 @@ the dependency, so RimWorld will not warn you.
 Anomaly is optional but recommended. Two of the accepted work types,
 `darkstudy` and `plantcutting`, are Anomaly work types, so they are only
 meaningful with that DLC enabled.
+
+**For the bot, additionally:**
+
+| | |
+|---|---|
+| Python | 3 |
+| Discord | a bot application and its token, invited to your server |
 
 ## Install the mod
 
@@ -218,6 +248,20 @@ reach it. Requires Biotech.
 | `/priority` does nothing | Missing or non-numeric `complement`. See above. |
 | A request returns `Request sent` and nothing happens | The route name is misspelled, or not a real route. The switch has no `default:` case, so an unknown route is a silent no-op that still looks like success. Check the spelling against the tables above. |
 | Commands visible in Discord but nothing happens in game | The mod is not running, or the token mismatches. Check the RimWorld log. |
+
+## Checklist
+
+Before opening an issue, confirm each of these. They cover the failure modes
+that have actually been reported.
+
+- [ ] The RimWorld log contains `server instace created on http://localhost:9891`.
+- [ ] `echo $RIMDC_TOKEN` in a shell started *after* `setx` prints your token.
+- [ ] A `curl` with the `Authorization` header returns `Request sent`, not `401`.
+- [ ] Biotech is enabled and `/create_character` creates a colonist.
+- [ ] The nickname in `?pawn=` matches the colonist's **nickname**, not their
+      full name, and the colonist is a living free colonist on the current map.
+- [ ] For `/priority`, `complement` is present and numeric.
+- [ ] Both `.env` and the environment hold the *same* token string, byte for byte.
 
 ## Development
 
