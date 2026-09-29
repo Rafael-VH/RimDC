@@ -5,6 +5,10 @@ __pycache__/
 *.so
 Assemblies/
 
+# Discord bot secrets and per-user state
+bot/.env
+bot/characters/
+
 .bin/
 build/
 develop-eggs/
