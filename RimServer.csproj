@@ -1,19 +1,33 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
-    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath> 
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <!--
+      Where RimWorld's managed assemblies live. The data folder is named after the
+      game executable, so it differs per install: RimWorldLinux_Data on Linux,
+      RimWorldWin64_Data on Windows. Override it instead of editing this file:
+
+        msbuild /p:RimWorldManagedDir="E:\SteamLibrary\steamapps\common\RimWorld\RimWorldWin64_Data\Managed"
+
+      The default is the Linux Steam install this repo was developed on.
+    -->
+    <RimWorldManagedDir Condition="'$(RimWorldManagedDir)' == ''">$(HOME)/.local/share/Steam/steamapps/common/RimWorld/RimWorldLinux_Data/Managed</RimWorldManagedDir>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="Assembly-CSharp">
-      <HintPath>$(HOME)/.local/share/Steam/steamapps/common/RimWorld/RimWorldLinux_Data/Managed/Assembly-CSharp.dll</HintPath>
+      <HintPath>$(RimWorldManagedDir)/Assembly-CSharp.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="UnityEngine.CoreModule">
-      <HintPath>$(HOME)/.local/share/Steam/steamapps/common/RimWorld/RimWorldLinux_Data/Managed/UnityEngine.CoreModule.dll</HintPath>
+      <HintPath>$(RimWorldManagedDir)/UnityEngine.CoreModule.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Lib.Harmony" Version="2.4.2" />
   </ItemGroup>
+  <Target Name="CheckRimWorldManagedDir" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(RimWorldManagedDir)')"
+           Text="RimWorld assemblies not found at '$(RimWorldManagedDir)'. Build with /p:RimWorldManagedDir=&lt;path to RimWorld's Managed folder&gt;." />
+  </Target>
 </Project>

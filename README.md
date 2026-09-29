@@ -1,10 +1,14 @@
 # RimServer
 
-A mod to connect RimWorld with other applications by hosting an HTTP server on a secondary thread. (The project is adapted for Linux by default, although it could likely be made to work on Windows as well with a few adjustments to the RimServer.csproj file.)
+A mod to connect RimWorld with other applications by hosting an HTTP server on a secondary thread. (The project defaults to a Linux Steam install; on other platforms point the build at your own copy of RimWorld's managed assemblies, see the `RimWorldManagedDir` property in RimServer.csproj.)
 
 # How to Install
 
-1. Compile the C# code.
+1. Compile the C# code. On anything other than the default Linux path:
+
+```sh
+dotnet build -c Release /p:RimWorldManagedDir="<path to RimWorld's Managed folder>"
+```
 
 ```sh
 dotnet build -c Release
