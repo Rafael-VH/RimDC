@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Net;
 using System.Threading;
 using System.Collections.Concurrent;
@@ -323,6 +324,22 @@ namespace ServerComponent
             }
         }
 
+        // These endpoints hand-build JSON by string interpolation, so two things
+        // have to be done by hand too. Under a comma-decimal culture (es-*, de-*)
+        // float.ToString() emits "0,75", which is not a JSON number, and an
+        // unescaped quote inside a hediff or apparel label breaks the document.
+        private static string JsonNumber(float value) {
+          return value.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static string JsonString(string value) {
+          if(value == null) {
+            return "";
+          }
+
+          return value.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        }
+
         private string getAction(string action, Pawn pawn) {
           if(action == "getskills") {
             string jsonResponse = "{" +
@@ -348,16 +365,16 @@ namespace ServerComponent
             float moodLevel = pawn.needs.mood != null ? pawn.needs.mood.CurLevelPercentage : 0f;
 
             string jsonResponse = "{" +
-              $"\"mood\":{moodLevel}," +
-              $"\"rest\":{restLevel}," +
-              $"\"food\":{foodLevel}" +
+              $"\"mood\":{JsonNumber(moodLevel)}," +
+              $"\"rest\":{JsonNumber(restLevel)}," +
+              $"\"food\":{JsonNumber(foodLevel)}" +
             "}";
 
             return jsonResponse;
 
           } else if(action == "gethealth") {
-            var healthConditions = pawn.health.hediffSet.hediffs.Select(h => 
-              $"{{\"label\":\"{h.LabelCap}\",\"severity\":{h.Severity},\"part\":\"{(h.Part != null ? h.Part.Label : "General")}\"}}"
+            var healthConditions = pawn.health.hediffSet.hediffs.Select(h =>
+              $"{{\"label\":\"{JsonString(h.LabelCap)}\",\"severity\":{JsonNumber(h.Severity)},\"part\":\"{JsonString(h.Part != null ? h.Part.Label : "General")}\"}}"
             ).ToList();
 
             string jsonResponse = "{ \"health\": [" + string.Join(",", healthConditions) + "] }";
@@ -371,7 +388,7 @@ namespace ServerComponent
             {
                 foreach (ThingWithComps eq in pawn.equipment.AllEquipmentListForReading)
                 {
-                    itemsFormatted.Add($"\"{eq.LabelCap}\"");
+                    itemsFormatted.Add($"\"{JsonString(eq.LabelCap)}\"");
                 }
             }
 
@@ -379,7 +396,7 @@ namespace ServerComponent
             {
                 foreach (Apparel clothing in pawn.apparel.WornApparel)
                 {
-                    itemsFormatted.Add($"\"{clothing.LabelCap}\"");
+                    itemsFormatted.Add($"\"{JsonString(clothing.LabelCap)}\"");
                 }
             }
 
