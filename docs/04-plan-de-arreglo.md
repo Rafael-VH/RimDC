@@ -1,5 +1,8 @@
 # Plan de arreglo
 
+> **Estado de ejecución**: qué se implementó de este plan, con qué evidencia y
+> qué se encontró en el camino, está en [`05-implementacion.md`](05-implementacion.md).
+
 Derivado de `03-auditoria.md`. Cubre los 22 hallazgos de la auditoría más 6 nuevos que aparecieron
 al releer el código durante la planificación.
 

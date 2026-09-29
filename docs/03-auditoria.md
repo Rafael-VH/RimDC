@@ -1,5 +1,9 @@
 # Auditoría de código
 
+> **Qué se hizo con esto**: el plan de arreglo es
+> [`04-plan-de-arreglo.md`](04-plan-de-arreglo.md) y el estado de ejecución está
+> en [`05-implementacion.md`](05-implementacion.md).
+
 Revisión completa de las 946 líneas de código de RimDC (604 C# + 342 Python),
 commit `28c963b` (el árbol reescrito y saneado; el SHA original `bac16f4` ya no
 existe en la rama).
