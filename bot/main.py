@@ -1,5 +1,7 @@
 import os
 import threading
+from pathlib import Path
+
 import discord
 import random
 import requests
@@ -12,6 +14,10 @@ load_dotenv()
 
 TOKEN = os.getenv("TOKEN")
 server = "http://localhost:9891/"
+
+# Per-user pawn mappings. Anchored to this file so the bot behaves the same
+# regardless of the directory it was launched from.
+DATA_DIR = Path(__file__).parent / "characters"
 
 intents = discord.Intents.all()
 intents.message_content = True
@@ -26,12 +32,12 @@ def send_request(method: str, params: dict) -> None:
 
 
 def request_wrapper(method: str, params: dict = {}, player_id: int = 0) -> None:
-    f = os.path.isfile("characters/{}".format(player_id))
+    f = os.path.isfile(DATA_DIR / str(player_id))
 
     if not f:
         return
 
-    with open(f"characters/{player_id}", "r") as f:
+    with open(DATA_DIR / str(player_id), "r") as f:
         content = f.read()
 
     params["pawn"] = content
@@ -232,9 +238,9 @@ async def generate_random_race(interaction: discord.Interaction):
 async def create_character(interaction: discord.Interaction, nickname: str):
     registered_nicknames = []
 
-    for x in os.listdir("characters"):
-        if os.path.isfile("characters/{}".format(x)):
-            with open("characters/{}".format(x), "r") as f:
+    for x in os.listdir(DATA_DIR):
+        if os.path.isfile(DATA_DIR / x):
+            with open(DATA_DIR / x, "r") as f:
                 registered_nicknames.append(f.read())
 
     if nickname in registered_nicknames:
@@ -254,8 +260,8 @@ async def create_character(interaction: discord.Interaction, nickname: str):
 
     print("Nickname: " + nickname)
 
-    if not os.path.isfile("characters/{}".format(interaction.user.id)):
-        with open("characters/{}".format(interaction.user.id), "w+") as f:
+    if not os.path.isfile(DATA_DIR / str(interaction.user.id)):
+        with open(DATA_DIR / str(interaction.user.id), "w+") as f:
             f.write(nickname)
 
         request_wrapper("create_character", {}, interaction.user.id)
@@ -271,8 +277,8 @@ async def create_character(interaction: discord.Interaction, nickname: str):
 @bot.tree.command(guild=GUILD, description="Clear all characters")
 async def clear_characters(interaction: discord.Interaction):
     if interaction.user.guild_permissions.administrator:
-        for x in os.listdir("characters"):
-            path = os.path.join("characters", x)
+        for x in os.listdir(DATA_DIR):
+            path = str(DATA_DIR / x)
 
             if os.path.isfile(path):
                 os.remove(path)
@@ -284,7 +290,7 @@ async def clear_characters(interaction: discord.Interaction):
 
 @bot.tree.command(guild=GUILD, description="Get character stats")
 async def fastfetch(interaction: discord.Interaction):
-    character = os.path.isfile("characters/{}".format(interaction.user.id))
+    character = os.path.isfile(DATA_DIR / str(interaction.user.id))
 
     if not character:
         await interaction.response.send_message(
@@ -292,7 +298,7 @@ async def fastfetch(interaction: discord.Interaction):
         )
         return
 
-    with open("characters/{}".format(interaction.user.id), "r") as f:
+    with open(DATA_DIR / str(interaction.user.id), "r") as f:
         pawn = f.read()
 
     skills = requests.get(url=server + "getskills", params={"pawn": pawn}).json()
@@ -339,4 +345,5 @@ async def fastfetch(interaction: discord.Interaction):
     await interaction.response.send_message(embed=embed)
 
 
-bot.run(TOKEN)  # type: ignore
+if __name__ == "__main__":
+    bot.run(TOKEN)  # type: ignore
