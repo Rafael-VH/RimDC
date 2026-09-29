@@ -421,11 +421,26 @@ namespace ServerComponent
         public static ConcurrentQueue<string> pendingCharacters = new ConcurrentQueue<string>();
         private static ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
 
-        private void SendResponse(HttpListenerContext ctx, string response) {
+        private static string authToken;
+
+        private void SendResponse(HttpListenerContext ctx, string response, int statusCode = 200) {
           byte[] buffer = System.Text.Encoding.UTF8.GetBytes(response);
+          ctx.Response.StatusCode = statusCode;
           ctx.Response.ContentLength64 = buffer.Length;
           ctx.Response.OutputStream.Write(buffer, 0, buffer.Length);
           ctx.Response.OutputStream.Close();
+        }
+
+        private static bool IsAuthorized(HttpListenerContext ctx) {
+          string header = ctx.Request.Headers["Authorization"];
+
+          // Ordinal rather than a constant-time compare. The listener is bound to
+          // loopback, so anything able to time these requests is already close
+          // enough to read the token out of this process.
+          return authToken != null
+            && header != null
+            && header.StartsWith("Bearer ", StringComparison.Ordinal)
+            && string.Equals(header.Substring("Bearer ".Length).Trim(), authToken, StringComparison.Ordinal);
         }
 
         public static Pawn GenerateRandomPawn(string nickname) {
@@ -479,6 +494,13 @@ namespace ServerComponent
           while(listener.IsListening) {
             try {
               HttpListenerContext ctx = listener.GetContext();
+
+              // Reject before the action reaches the queue, not after: the whole
+              // point is that an unauthenticated caller never reaches the game.
+              if(!IsAuthorized(ctx)) {
+                SendResponse(ctx, "Unauthorized: RIMDC_TOKEN does not match.", 401);
+                continue;
+              }
 
               string requestUrl = ctx.Request.Url.AbsolutePath;
               NameValueCollection queryParams = ctx.Request.QueryString;
@@ -559,6 +581,17 @@ namespace ServerComponent
 
           totalPlayers = 0;
 
+          authToken = Environment.GetEnvironmentVariable("RIMDC_TOKEN");
+
+          // Fail closed. Falling back to "no token required" would reintroduce
+          // the exact hole the token closes, so an unset variable means no port.
+          if(string.IsNullOrWhiteSpace(authToken)) {
+            authToken = null;
+            Log.Error("[ Server Mod ] RIMDC_TOKEN is not set, so the server was not started. "
+              + "Set it as a user environment variable and restart RimWorld.");
+            return;
+          }
+
           listener = new HttpListener();
           listener.Prefixes.Add("http://localhost:9891/");
           listener.Start();
@@ -576,6 +609,7 @@ namespace ServerComponent
           // could leave the action queue half-processed.
           listener?.Close();
           serverThread = null;
+          authToken = null;
 
           Log.Message("[ Server Mod ] Server instance cleaned");
         }

@@ -66,7 +66,7 @@ def fake_server(monkeypatch):
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
-            seen.append(self.path)
+            seen.append((self.path, self.headers.get("Authorization")))
             payload = b"sent"
             self.send_response(200)
             self.send_header("Content-Type", "text/plain")
@@ -249,3 +249,21 @@ def test_action_handlers_reply(data_dir, name, args):
     run(handler(name)(fake, *args))
 
     assert fake.replies, "{} never replied to its user".format(name)
+
+
+# --- C1: the mod's port was open to any local process ----------------------
+
+
+def test_send_request_carries_the_shared_token(fake_server):
+    """C1: the listener had no authentication at all.
+
+    Anything on the machine could reach http://localhost:9891/ and drive the
+    game. The bot now sends RIMDC_TOKEN and the mod rejects everything else, so
+    every request has to carry the bearer header.
+    """
+    run(main.send_request("getskills", {"pawn": "Ana"}))
+
+    assert fake_server, "the request never reached the server"
+    for path, authorization in fake_server:
+        assert path.startswith("/getskills"), path
+        assert authorization == "Bearer test-token", authorization

@@ -61,6 +61,17 @@ def load_guild() -> discord.Object:
 
 GUILD = load_guild()
 
+# C1: shared with the mod, which reads the same variable from its own
+# environment. The mod refuses to open its port when this is unset, so an empty
+# value here means every command comes back "RimWorld did not answer".
+RIMDC_TOKEN = os.getenv("RIMDC_TOKEN", "").strip()
+
+if not RIMDC_TOKEN:
+    raise SystemExit(
+        "RIMDC_TOKEN is not set. It must match the RIMDC_TOKEN environment "
+        "variable RimWorld sees; the mod keeps its port closed without it."
+    )
+
 
 def create_embed_message(text: str) -> discord.Embed:
     return discord.Embed(title="Log", description=text, color=discord.Color.blue())
@@ -94,6 +105,7 @@ async def send_request(method: str, params: dict) -> str:
             requests.get,
             server + method,
             params=params,
+            headers={"Authorization": "Bearer " + RIMDC_TOKEN},
             timeout=REQUEST_TIMEOUT,
         )
     except requests.RequestException as exc:

@@ -22,9 +22,28 @@ mv bin/Release/* Assemblies
 
 1. Go to the mods section in RimWorld and enable the RimServer mod.
 
+1. Set a shared secret. The mod reads `RIMDC_TOKEN` from its environment and
+   the bot sends the same value, so both processes must see the identical string.
+   On Windows:
+
+```sh
+setx RIMDC_TOKEN "pick-something-long-and-random"
+```
+
+   Restart RimWorld afterwards. If the variable is missing the mod does not open
+   its port at all and logs why, rather than serving unauthenticated.
+
 # How to Use
 
-The HTTP server is listening on localhost:9891. You can send requests to that server (For some reason, I decided to handle the methods using GET and query parameters.); the routes that will perform actions are:
+The HTTP server is listening on localhost:9891. Requests are authenticated, so
+every call needs the shared token in an `Authorization` header:
+
+```sh
+curl -H "Authorization: Bearer $RIMDC_TOKEN" localhost:9891/eat?pawn=Ana
+```
+
+Without it you get `401 Unauthorized`. The routes (handled with GET and query
+parameters) are:
 
 + /priority (example: localhost:9891?pawn=pawn_name&data=attack)
 + /unequip_weapon

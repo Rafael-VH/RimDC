@@ -12,3 +12,4 @@ import os
 
 os.environ["GUILD"] = "0"
 os.environ["TOKEN"] = ""
+os.environ["RIMDC_TOKEN"] = "test-token"
