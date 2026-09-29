@@ -251,6 +251,25 @@ def test_action_handlers_reply(data_dir, name, args):
     assert fake.replies, "{} never replied to its user".format(name)
 
 
+# --- /fastfetch asked the mod twice on the error path ----------------------
+
+
+def test_fastfetch_asks_the_mod_once_per_field(data_dir, fake_server):
+    """The error path re-requested the same field and used the second answer.
+
+    `json.loads(await send_request(...))` followed by a second `send_request`
+    inside the ValueError handler. The fake server answers "sent", which is not
+    JSON, so this test walks exactly that path -- the one a user hits when the
+    pawn is dead or the port is closed.
+    """
+    data_dir.mkdir(parents=True)
+    (data_dir / "1").write_text("Ana")
+
+    run(handler("fastfetch")(FakeInteraction(user_id=1)))
+
+    assert len(fake_server) == 1, "expected one request, got {}".format(fake_server)
+
+
 # --- C1: the mod's port was open to any local process ----------------------
 
 

@@ -385,13 +385,18 @@ async def fastfetch(interaction: discord.Interaction):
     # parse defensively and show the reason rather than a decode traceback.
     stats = {}
     for field in ("skills", "needs", "health"):
+        # One request per field. The old code called send_request a second time
+        # inside the handler, so the error path -- the one a user actually hits
+        # when the pawn is dead or the port is closed -- asked the mod twice for
+        # the same data and showed a result from a second, possibly different,
+        # call.
+        reply = await send_request(field, {"pawn": pawn})
+
         try:
-            stats[field] = json.loads(await send_request(field, {"pawn": pawn}))
+            stats[field] = json.loads(reply)
         except ValueError:
             await interaction.response.send_message(
-                embed=create_embed_message(
-                    describe(await send_request(field, {"pawn": pawn}))
-                )
+                embed=create_embed_message(describe(reply))
             )
             return
 
