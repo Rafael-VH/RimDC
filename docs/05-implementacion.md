@@ -17,8 +17,8 @@
 | Hallazgos cerrados | **24 de 28** |
 | A medio cerrar | 2 (M6, M7) |
 | Sin implementar, por decisión de producto | 2 (M1, B4) |
-| Commits | 8, uno por fase |
-| Tests del bot | 24, verdes |
+| Commits | 10, uno por fase más documentación |
+| Tests del bot | 25, verdes |
 | Build del mod | 0 warnings, 0 errores |
 | **Sin verificar** | **todo lo que necesita el juego corriendo** |
 
@@ -40,6 +40,8 @@ verificación en [la sección final](#qué-no-se-verificó-y-por-qué-importa).
 | `412631b` | 3 | Token compartido en el puerto HTTP |
 | `3d1f691` | — | La auditoría apuntaba a un SHA que ya no existe |
 | `22edaae` | — | Checklist de runtime y el bug diferido, anotados en el plan |
+| `24fc8c7` | — | Informe de implementación: qué se hizo, con qué evidencia, qué se encontró |
+| `ce39cc6` | — | `/fastfetch` pedía el mismo campo dos veces en el camino de error |
 
 ---
 
@@ -182,7 +184,7 @@ reportó como `FileNotFoundError` y no como algo más sutil.
 
 | Qué | Cómo | Resultado |
 |-----|------|-----------|
-| Bot: contrato y datos | `pytest` | 24 passed |
+| Bot: contrato y datos | `pytest` | 25 passed |
 | Mod: compila | `dotnet build -c Release /p:RimWorldManagedDir="..."` | 0 warnings, 0 errores |
 | A5 (cultura) | Consola temporal bajo `es-BO`, parseando con `System.Text.Json` | JSON viejo rechazado, nuevo válido |
 | C1 (auth) | Consola temporal, 15 casos de header + gate | 15/15 |
@@ -255,15 +257,36 @@ convierte en un bug nuevo.
 
 ---
 
-## Un bug conocido, sin relación con el plan
+## Un bug encontrado y corregido durante la Fase 5
 
-`getneeds` y `gethealth` hacen **dos** requests por llamada de `/fastfetch`: uno
-dentro de `json.loads` y otro dentro de `describe` cuando el primero falla. Con
-el fix de A5 el camino feliz es un request, pero el camino de error —que es
-justamente el interesante— sigue pidiendo dos veces.
+`/fastfetch` hacía **dos** requests por campo en el camino de error: uno dentro
+de `json.loads` y otro dentro de `describe` cuando el primero fallaba.
 
-Detectado leyendo el código durante la Fase 5. **No corregido**: no estaba en el
-plan y no quise ampliar alcance. Es una línea, si querés.
+```python
+# antes
+stats[field] = json.loads(await send_request(field, {"pawn": pawn}))
+except ValueError:
+    describe(await send_request(field, {"pawn": pawn}))   # segundo request
+```
+
+No estaba en el plan. Lo detecté leyendo el código durante la Fase 5 y lo dejé
+anotado sin tocar, para no ampliar alcance a mitad de una fase. Se corrigió
+después (`ce39cc6`), con un test que falla contra el código viejo.
+
+Lo que lo hace peor que un request de más: el mensaje que veía el usuario venía
+de una **segunda llamada**, que podía dar un resultado distinto al que falló el
+parseo. No era solo lentitud, era inconsistencia.
+
+Y es justamente el camino que más se usa: el error es lo que pasa cuando el
+pawn está muerto o el puerto está cerrado.
+
+### La disciplina del test rojo
+
+El test recorre ese camino a propósito —el fixture responde `sent`, que no es
+JSON— y afirma que llegó **exactamente un** request. Lo verifiqué revirtiendo el
+fix: contra el código viejo falla mostrando dos requests idénticos a `/skills`.
+
+Un test que no falla contra el bug que dice cubrir no es un test, es decoración.
 
 ---
 
