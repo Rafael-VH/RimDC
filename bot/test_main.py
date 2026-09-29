@@ -59,9 +59,8 @@ class FakeInteraction:
 def fake_server(monkeypatch):
     """Point the bot at a live local server.
 
-    request_wrapper fires its requests on a background thread, so every test
-    needs main.server to resolve to something -- otherwise stray threads hit a
-    dead port and race the teardown.
+    send_request hands the blocking call to a worker thread, so every test needs
+    main.server to resolve to something -- otherwise the call races the teardown.
     """
     seen = []
 
@@ -102,33 +101,33 @@ def data_dir(monkeypatch, tmp_path):
 # --- M3: mutable default argument ------------------------------------------
 
 
-def test_request_wrapper_default_is_not_a_shared_dict(data_dir):
+def test_request_wrapper_does_not_mutate_caller_params(data_dir):
     """M3: `params: dict = {}` was mutated in place by every call.
 
     The bug never fired because "pawn" is always overwritten, so there is no
-    observable request to assert on. The defect is structural: check the default.
+    observable request to assert on. The observable part is the caller's dict.
     """
     data_dir.mkdir(parents=True)
     (data_dir / "1").write_text("Ana")
 
-    main.request_wrapper("eat", player_id=1)
+    params = {}
+    run(main.request_wrapper("eat", params, player_id=1))
 
-    default = main.request_wrapper.__defaults__[0]
-    assert default is None, "default params must be None, not a mutable dict"
-    assert "pawn" not in default
+    assert params == {}, "request_wrapper must not inject pawn into the caller's dict"
+    assert main.request_wrapper.__defaults__[0] is None
 
 
 # --- A3: truncation ran after the duplicate check --------------------------
 
 
 def test_second_user_collapsing_to_same_pawn_is_refused(data_dir):
-    """A3: "Alejandro" and "Alexandr" both truncate to "Alexand".
+    """A3: "Alexandria" and "Alexandr" both truncate to "Alexan".
 
     The duplicate check ran on the full name, so both passed it and both were
     truncated afterwards -- two Discord users controlling one colonist.
     """
     data_dir.mkdir(parents=True)
-    (data_dir / "1").write_text("Alexand")  # user 1 already holds "Alexand"
+    (data_dir / "1").write_text("Alexan")  # user 1 already holds "Alexan"
 
     fake = FakeInteraction(user_id=2)
     run(handler("create_character")(fake, "Alexandr"))
@@ -138,9 +137,9 @@ def test_second_user_collapsing_to_same_pawn_is_refused(data_dir):
 
 
 def test_duplicate_check_uses_the_truncated_name(data_dir):
-    """A3, second half: the refusal message must name the truncated nick."""
+    """A3, second half: the refusal must survive the longer spelling too."""
     data_dir.mkdir(parents=True)
-    (data_dir / "1").write_text("Alexand")
+    (data_dir / "1").write_text("Alexan")
 
     fake = FakeInteraction(user_id=2)
     run(handler("create_character")(fake, "Alexandria"))
@@ -185,7 +184,7 @@ def test_send_request_reports_failure_instead_of_raising(dead_server):
     A dead RimWorld raised ConnectionError on a background thread, which the
     bot never saw -- so every command reported "Request sent" no matter what.
     """
-    result = main.send_request("eat", {"pawn": "Ana"})
+    result = run(main.send_request("eat", {"pawn": "Ana"}))
 
     assert result is not None, "send_request must return something the bot can show"
     assert "error" in result.lower()
@@ -204,3 +203,49 @@ def test_create_character_does_not_persist_when_rimworld_is_down(data_dir, dead_
     run(handler("create_character")(fake, "Ana"))
 
     assert not (data_dir / "1").exists()
+
+
+# --- C2: a typo in one handler shipped unnoticed ---------------------------
+
+
+class Choice:
+    """Stand-in for app_commands.Choice, which needs a Discord client."""
+
+    def __init__(self, value):
+        self.value = value
+
+
+@pytest.mark.parametrize(
+    "name,args",
+    [
+        ("set_priority", (Choice("cleaning"), 2)),
+        ("unequip_weapon", ()),
+        ("strip", ()),
+        ("threat_response", (Choice("flee"),)),
+        ("equip_weapon", ()),
+        ("equip_clothes", ()),
+        ("eat", ()),
+        ("rest", ()),
+        ("kill", ("Ana",)),
+        ("incapacite", ("Ana",)),
+        ("rescue", ("Ana",)),
+        ("shoot", ("Ana",)),
+        ("arrest", ("Ana",)),
+        ("fastfetch", ()),
+        ("clear_characters", ()),
+        ("generate_random_race", ()),
+    ],
+)
+def test_action_handlers_reply(data_dir, name, args):
+    """C2: /equip_weapon crashed on `interaction.resppobresonse`.
+
+    Nothing invoked the handlers, so a typo in any of them reached main and only
+    surfaced when a user ran that exact command. Every action handler must answer.
+    """
+    data_dir.mkdir(parents=True)
+    (data_dir / "1").write_text("Ana")
+
+    fake = FakeInteraction(user_id=1)
+    run(handler(name)(fake, *args))
+
+    assert fake.replies, "{} never replied to its user".format(name)
