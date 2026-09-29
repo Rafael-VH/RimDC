@@ -1,7 +1,12 @@
 # Auditoría de código
 
-Revisión completa de las 946 líneas de código de RimDC (604 C# + 342 Python), commit `bac16f4`.
+Revisión completa de las 946 líneas de código de RimDC (604 C# + 342 Python),
+commit `28c963b` (el árbol reescrito y saneado; el SHA original `bac16f4` ya no
+existe en la rama).
 Fecha: 2026-09-28.
+
+Las correcciones de esta revisión están en `docs/04-plan-de-arreglo.md`. Los
+hallazgos C1, A5, A4, M2, M4, M5, B1, B3 y B5 ya están resueltos.
 
 ## Resumen
 
