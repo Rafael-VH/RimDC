@@ -137,7 +137,7 @@ lectura futura desde el listener lo rompe en silencio. Ver [M4](#m4).
 Este es el punto más frágil del diseño.
 
 ```
-discord user ID (int)  ──►  bot/characters/347903091816923136
+discord user ID (int)  ──►  bot/characters/<user-id>
                                     │
                                     └── contenido: "Ana"
                                               │

@@ -1,8 +1,8 @@
 # Auditoría RimDC
 
-Auditoría completa del repo, hecha el 2026-09-28 sobre `C:\Users\rafae\Documents\GitHub\RimDC`
-(commit `28c963b` — el árbol reescrito y saneado; el SHA original `bac16f4` ya no
-existe en la rama).
+Auditoría completa del repo, hecha el 2026-09-28 sobre el commit `28c963b`
+(el árbol reescrito y saneado; el SHA original `bac16f4` ya no existe en la
+rama).
 
 Los documentos 01 a 03 describen el repo **antes** de las correcciones. Para saber
 qué se implementó de verdad, empieza por
