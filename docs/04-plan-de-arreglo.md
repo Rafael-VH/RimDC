@@ -323,6 +323,30 @@ Los 28 hallazgos, con fase, verificación y tamaño.
 
 ---
 
+## Pendiente de verificación en runtime
+
+Compilar y probar la lógica aislada no es lo mismo que jugar. Esto necesita
+RimWorld abierto y una partida cargada, así que queda para esa sesión:
+
+- [ ] El mod lee `RIMDC_TOKEN` del entorno y abre el puerto; sin la variable no
+      lo abre (C1, commit `412631b`).
+- [ ] Un `curl` sin header devuelve 401 y uno con el token ejecuta la acción.
+- [ ] `/fastfetch` devuelve stats legibles bajo `es-BO` (A5, commit `a5e60fc`).
+- [ ] `/create_character` con Biotech activo y con Biotech inactivo: el segundo
+      caso debe loguear el error y no mentir con "Added new character".
+- [ ] Salir al menú principal y volver a entrar no rompe el listener (A4, M2).
+
+## Bug diferido, ya identificado
+
+`kill`, `incapacite`, `rescue`, `shoot` y `arrest` resuelven su objetivo con
+`Find.CurrentMap.mapPawns.FreeColonists`, así que **solo alcanzan colonos**. El
+README los documenta con `data=enemy_name`, que nunca va a coincidir. Decidido:
+no se toca hasta tener runtime disponible, porque el criterio correcto depende de
+si esas acciones deben servir para colonos, para enemigos, o para ambos con un
+selector. Es un cambio de comportamiento, no un fix de crash.
+
+---
+
 ## Secuencia recomendada
 
 ```
