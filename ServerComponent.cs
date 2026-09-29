@@ -286,6 +286,10 @@ namespace ServerComponent
                     p => p.Name is NameTriple nameTriple && nameTriple.Nick.Equals(data, StringComparison.OrdinalIgnoreCase)
                   );
 
+                  if(selectedPawn5 == null || selectedPawn5.Dead) {
+                    break;
+                  }
+
                   Building_Bed prisonBed = RestUtility.FindBedFor(
                       selectedPawn5,
                       pawn,
@@ -394,13 +398,11 @@ namespace ServerComponent
         public static HttpListener listener;
         public static int totalPlayers;
         public static Thread serverThread;
-        public static List<string> pendingCharacters = new List<string>();
+        // Written by the HTTP thread, drained by the game thread on the next
+        // Page_ConfigureStartingPawns. A List would let the enumeration and a
+        // concurrent Add race into an InvalidOperationException.
+        public static ConcurrentQueue<string> pendingCharacters = new ConcurrentQueue<string>();
         private static ConcurrentQueue<Action> actionQueue = new ConcurrentQueue<Action>();
-
-        public override void FinalizeInit()
-        {
-          base.FinalizeInit();
-        }
 
         private void SendResponse(HttpListenerContext ctx, string response) {
           byte[] buffer = System.Text.Encoding.UTF8.GetBytes(response);
@@ -438,25 +440,21 @@ namespace ServerComponent
         [HarmonyPatch(typeof(Page_ConfigureStartingPawns), "PreOpen")]
         public static class InjectCharacter {
           public static void Postfix() {
-            // please work omfgggg
             if(Current.Game?.InitData == null) return;
-            if(ServerComponent.pendingCharacters.Count == 0) return;
 
-            foreach(var nickname in ServerComponent.pendingCharacters) {
+            while(ServerComponent.pendingCharacters.TryDequeue(out string nickname)) {
               Pawn newPawn = ServerComponent.GenerateRandomPawn(nickname);
-
-              Log.Message("[ Server Mod ] Creating new pawn...");
 
               if(newPawn != null) {
                 Current.Game.InitData.startingAndOptionalPawns.Insert(0, newPawn);
                 totalPlayers++;
                 Current.Game.InitData.startingPawnCount = totalPlayers;
 
-                Log.Message("[ Server Mod ] New pawn created!");
+                Log.Message("[ Server Mod ] New pawn created: " + nickname);
+              } else {
+                Log.Error("[ Server Mod ] Could not create " + nickname + ". Is Biotech active?");
               }
             }
-
-            ServerComponent.pendingCharacters.Clear();
           }
         }
 
@@ -483,20 +481,20 @@ namespace ServerComponent
                     {
                         Pawn newPawn = ServerComponent.GenerateRandomPawn(pawnNickname);
 
-                        Log.Message("[ Server Mod ] Creating new pawn...");
-
                         if(newPawn != null) {
                           Current.Game.InitData.startingAndOptionalPawns.Insert(0, newPawn);
                           totalPlayers++;
                           Current.Game.InitData.startingPawnCount = totalPlayers;
 
-                          Log.Message("[ Server Mod ] New pawn created!");
-                        } 
+                          Log.Message("[ Server Mod ] New pawn created: " + pawnNickname);
+                        } else {
+                          Log.Error("[ Server Mod ] Could not create " + pawnNickname + ". Is Biotech active?");
+                        }
                     } else {
-                      pendingCharacters.Add(pawnNickname);
+                        // No character-creation screen open yet; the Postfix on
+                        // Page_ConfigureStartingPawns will pick this up.
+                        pendingCharacters.Enqueue(pawnNickname);
                     }
-
-                    Log.Message($"[ Server Mod ] Added new character: {pawnNickname}");
                   }
 
                   SendResponse(ctx, "sent");
@@ -522,17 +520,18 @@ namespace ServerComponent
                 ProcessAction(requestUrl[1..], data, complement, selectedPawn);
                 SendResponse(ctx, "Request sent");
               });
-            } catch(Exception) {}
+            } catch(HttpListenerException) {
+              // Thrown when CloseServer closes the listener under GetContext().
+              // The while condition is now false, so leaving here ends the thread.
+              break;
+            } catch(Exception ex) {
+              Log.Error("[ Server Mod ] RequestListener: " + ex);
+            }
           }
 
           actionQueue.Enqueue(() => {
               Log.Message("[ Server Mod ] The server has been killed!");
           });
-        }
-
-        public override void ExposeData() 
-        {
-          base.ExposeData();
         }
 
         private void StartServer()
@@ -555,13 +554,11 @@ namespace ServerComponent
 
         public static void CloseServer() 
         {
-          if(serverThread.IsAlive) {
-            serverThread.Abort();
-          }
-
-          if(listener.IsListening) {
-            listener.Close();
-          }
+          // Closing the listener unblocks the GetContext() the thread is parked on,
+          // so it exits on its own. Thread.Abort is not supported on modern .NET and
+          // could leave the action queue half-processed.
+          listener?.Close();
+          serverThread = null;
 
           Log.Message("[ Server Mod ] Server instance cleaned");
         }
@@ -573,7 +570,7 @@ namespace ServerComponent
               actionToExecute.Invoke();
 
             } catch(Exception ex) {
-              Log.Error("[ Server Mod ] Error: " + ex.Message);
+              Log.Error("[ Server Mod ] Error running action: " + ex);
             }
           }
         }
